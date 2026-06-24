@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
-import OpenAI from 'openai'
+import { GoogleGenerativeAI } from '@google/generative-ai'
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-})
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '')
+const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
 
 async function scrapeWebsite(url: string): Promise<string> {
   try {
@@ -45,13 +44,8 @@ Provide a brief 2-3 sentence summary of:
 
 Keep it concise and actionable.`
 
-  const response = await openai.chat.completions.create({
-    model: 'gpt-4o-mini',
-    messages: [{ role: 'user', content: prompt }],
-    max_tokens: 200
-  })
-
-  return response.choices[0].message.content || ''
+  const result = await model.generateContent(prompt)
+  return result.response.text() || ''
 }
 
 async function generateOpener(business: string, research: string) {
@@ -68,13 +62,8 @@ The opener should:
 
 Write ONLY the opener, no subject, no greeting, no signature.`
 
-  const response = await openai.chat.completions.create({
-    model: 'gpt-4o-mini',
-    messages: [{ role: 'user', content: prompt }],
-    max_tokens: 100
-  })
-
-  return response.choices[0].message.content || ''
+  const result = await model.generateContent(prompt)
+  return result.response.text() || ''
 }
 
 export async function POST(request: NextRequest) {
