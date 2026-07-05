@@ -19,11 +19,19 @@ export async function POST(request: NextRequest) {
 
     // Parse CSV
     const text = await file.text()
-    const parsed = Papa.parse(text, { header: true })
+    const parsed = Papa.parse(text, { header: true, skipEmptyLines: 'greedy' })
 
-    if (parsed.errors.length > 0) {
+    // Filter valid rows (must have name, business, and url)
+    const validRows = parsed.data.filter((row: any) => {
+      return row.name && row.business && row.url
+    })
+
+    if (validRows.length === 0) {
       return NextResponse.json(
-        { error: 'CSV parsing failed', details: parsed.errors },
+        { 
+          error: 'CSV contains no valid prospect rows. Ensure columns name, business, and url are filled.', 
+          details: parsed.errors 
+        },
         { status: 400 }
       )
     }
@@ -35,7 +43,7 @@ export async function POST(request: NextRequest) {
         name: campaignName,
         subject_template: subjectTemplate,
         body_template: bodyTemplate,
-        total_prospects: parsed.data.length,
+        total_prospects: validRows.length,
         status: 'draft'
       })
       .select()
@@ -49,12 +57,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Insert prospects
-    const prospects = parsed.data.map((row: any) => ({
+    const prospects = validRows.map((row: any) => ({
       campaign_id: campaign.id,
-      name: row.name || '',
-      business: row.business || '',
-      url: row.url || '',
-      email: row.email || null,
+      name: String(row.name).trim(),
+      business: String(row.business).trim(),
+      url: String(row.url).trim(),
+      email: row.email ? String(row.email).trim() : null,
       status: 'pending'
     }))
 
